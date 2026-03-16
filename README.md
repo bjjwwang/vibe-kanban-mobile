@@ -38,8 +38,9 @@ server {
     }
 
     # Proxy API + WebSocket to vibe-kanban
+    # Replace the port with your vibe-kanban instance port
     location / {
-        proxy_pass http://127.0.0.1:33171;
+        proxy_pass http://127.0.0.1:<vibe-kanban-port>;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
