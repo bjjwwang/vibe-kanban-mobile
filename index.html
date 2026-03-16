@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>VK Mobile</title>
+<style>
+:root{
+  --bg:#0f172a;--bg2:#1e293b;--bg3:#334155;
+  --fg:#e2e8f0;--fg2:#94a3b8;--fg3:#64748b;
+  --acc:#6366f1;--acc2:#818cf8;
+  --green:#22c55e;--red:#ef4444;--yellow:#eab308;--orange:#f97316;
+  --radius:10px;
+  --safe-b:env(safe-area-inset-bottom,0px);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--fg);font-size:15px;-webkit-text-size-adjust:100%}
+
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+
+/* Header */
+.header{flex-shrink:0;display:flex;align-items:center;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top));background:var(--bg2);border-bottom:1px solid var(--bg3);gap:10px;min-height:48px}
+.header h1{font-size:16px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.header .back{font-size:24px;color:var(--acc2);cursor:pointer;padding:0 4px;flex-shrink:0;line-height:1}
+.header .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.header .dot.on{background:var(--green);box-shadow:0 0 6px var(--green)}
+.header .dot.off{background:var(--fg3)}
+
+.content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+
+/* Workspace list */
+.ws-item{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.06);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.ws-item:active{background:rgba(255,255,255,.04)}
+.ws-item .ws-row{display:flex;align-items:center;gap:8px}
+.ws-item .ws-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.ws-item .ws-dot.running{background:var(--green);box-shadow:0 0 5px var(--green)}
+.ws-item .ws-dot.error{background:var(--red)}
+.ws-item .ws-dot.idle{background:var(--fg3);opacity:.4}
+.ws-item .ws-name{flex:1;font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
+.ws-item .ws-time{font-size:11px;color:var(--fg3);flex-shrink:0}
+.ws-item .ws-project{font-size:11px;color:var(--fg3);margin-top:3px;padding-left:15px}
+.ws-item .ws-stats{display:flex;gap:8px;margin-top:3px;padding-left:15px}
+.ws-item .ws-stat{font-size:11px}
+.ws-item .ws-stat.add{color:var(--green)}
+.ws-item .ws-stat.del{color:var(--red)}
+
+/* Section label */
+.section-label{padding:10px 16px 6px;font-size:12px;font-weight:700;color:var(--fg3);text-transform:uppercase;letter-spacing:.5px;background:var(--bg);position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between}
+
+/* Process list */
+.proc-item{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.proc-item:active{background:rgba(255,255,255,.04)}
+.proc-item .proc-header{display:flex;align-items:center;gap:8px}
+.proc-item .proc-prompt{font-size:14px;line-height:1.4;color:var(--fg);margin-top:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.proc-item .proc-time{font-size:11px;color:var(--fg3)}
+
+.badge{display:inline-block;font-size:10px;padding:2px 6px;border-radius:5px;font-weight:700;text-transform:uppercase}
+.badge.running{background:rgba(34,197,94,.15);color:var(--green)}
+.badge.done{background:rgba(99,102,241,.12);color:var(--acc2)}
+.badge.error{background:rgba(239,68,68,.15);color:var(--red)}
+
+/* Conversation log */
+.msg{padding:10px 16px;border-bottom:1px solid rgba(255,255,255,.04)}
+.msg.user{background:rgba(99,102,241,.08)}
+.msg.assistant{background:transparent}
+.msg.system{background:rgba(255,255,255,.02)}
+.msg.tool{background:rgba(34,197,94,.04)}
+.msg-role{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--fg3);margin-bottom:4px}
+.msg-role .role-user{color:var(--acc2)}
+.msg-role .role-assistant{color:var(--green)}
+.msg-role .role-tool{color:var(--yellow)}
+.msg-text{font-size:14px;line-height:1.5;color:var(--fg);word-break:break-word}
+.msg-text.collapsed{max-height:80px;overflow:hidden;position:relative}
+.msg-text.collapsed::after{content:'';position:absolute;bottom:0;left:0;right:0;height:30px;background:linear-gradient(transparent,var(--bg))}
+.msg.user .msg-text.collapsed::after{background:linear-gradient(transparent,rgba(15,23,42,.92))}
+.msg-toggle{font-size:12px;color:var(--acc2);cursor:pointer;margin-top:4px;padding:4px 0}
+.msg-text pre{background:var(--bg3);padding:10px 12px;border-radius:8px;overflow-x:auto;font-size:12px;margin:8px 0;font-family:'SF Mono',Menlo,monospace;line-height:1.5;white-space:pre-wrap;word-break:break-all}
+.msg-text code{background:var(--bg3);padding:1px 5px;border-radius:4px;font-size:12.5px;font-family:'SF Mono',Menlo,monospace}
+.msg-text pre code{background:none;padding:0;border-radius:0;font-size:inherit}
+.msg-text h1,.msg-text h2,.msg-text h3,.msg-text h4{margin:10px 0 4px;font-weight:600;line-height:1.3}
+.msg-text h1{font-size:17px}.msg-text h2{font-size:16px}.msg-text h3{font-size:15px}.msg-text h4{font-size:14px;color:var(--fg2)}
+.msg-text ul,.msg-text ol{padding-left:20px;margin:4px 0}
+.msg-text li{margin:2px 0;line-height:1.5}
+.msg-text blockquote{border-left:3px solid var(--acc);padding:2px 10px;margin:6px 0;color:var(--fg2)}
+.msg-text a{color:var(--acc2);text-decoration:underline;text-underline-offset:2px}
+.msg-text strong{font-weight:600;color:var(--fg)}
+.msg-text em{font-style:italic;color:var(--fg2)}
+.msg-text hr{border:none;border-top:1px solid var(--bg3);margin:10px 0}
+.msg-text table{border-collapse:collapse;margin:8px 0;font-size:13px;width:100%;overflow-x:auto;display:block}
+.msg-text th,.msg-text td{border:1px solid var(--bg3);padding:4px 8px;text-align:left}
+.msg-text th{background:var(--bg2);font-weight:600}
+.msg-text p{margin:4px 0}
+.pre-header{display:flex;align-items:center;justify-content:space-between;background:var(--bg2);padding:4px 12px;border-radius:8px 8px 0 0;margin-top:8px;font-size:11px;color:var(--fg3)}
+.pre-header+pre{margin-top:0;border-radius:0 0 8px 8px}
+
+/* Input */
+.input-area{flex-shrink:0;padding:10px 16px;padding-bottom:max(10px,var(--safe-b));background:var(--bg2);border-top:1px solid var(--bg3);display:flex;gap:8px;align-items:flex-end}
+.input-area textarea{flex:1;background:var(--bg);color:var(--fg);border:1px solid var(--bg3);border-radius:var(--radius);padding:10px 12px;font-size:15px;font-family:inherit;resize:none;outline:none;max-height:120px;min-height:42px;line-height:1.4}
+.input-area textarea:focus{border-color:var(--acc)}
+.input-area textarea::placeholder{color:var(--fg3)}
+.send-btn,.stop-btn{width:42px;height:42px;border-radius:var(--radius);color:#fff;border:none;font-size:20px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.send-btn{background:var(--acc)}
+.send-btn:disabled{opacity:.4;cursor:default}
+.send-btn:active:not(:disabled){background:var(--acc2)}
+.stop-btn{background:var(--red);font-size:16px;display:none}
+.stop-btn:active{background:#dc2626}
+.stop-btn.visible{display:flex}
+
+/* Utility */
+.loading{text-align:center;padding:40px;color:var(--fg3)}
+.spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--bg3);border-top-color:var(--acc2);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{text-align:center;padding:60px 20px;color:var(--fg3)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const API = '/api';
+const app = document.getElementById('app');
+
+// State
+let S = {
+  view: 'home',
+  // home: flat workspace list
+  allWorkspaces: {},  // id -> workspace data from WS
+  projectsById: {},   // id -> project
+  tasksById: {},      // id -> task
+  // session view
+  workspaceId: null, workspaceName: '', sessionId: null,
+  processes: [],
+  // log view
+  processId: null, entries: [],
+  // connections
+  wsHome: null, epWs: null, logWs: null,
+};
+
+async function api(path) {
+  const r = await fetch(API + path);
+  if (!r.ok) throw new Error(`API ${r.status}`);
+  return (await r.json()).data;
+}
+async function apiPost(path, body) {
+  const r = await fetch(API + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(`API ${r.status}`);
+  return (await r.json()).data;
+}
+
+function timeAgo(d) {
+  if (!d) return '';
+  const s = Math.floor((Date.now() - new Date(d)) / 1000);
+  if (s < 60) return 'now';
+  if (s < 3600) return Math.floor(s/60) + 'm';
+  if (s < 86400) return Math.floor(s/3600) + 'h';
+  return Math.floor(s/86400) + 'd';
+}
+
+function esc(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatContent(text) {
+  if (!text) return '';
+
+  // Split into code blocks and non-code blocks
+  const parts = [];
+  let remaining = text;
+  const codeBlockRe = /```(\w*)\n?([\s\S]*?)```/g;
+  let match, lastIdx = 0;
+  while ((match = codeBlockRe.exec(text)) !== null) {
+    if (match.index > lastIdx) parts.push({ type: 'text', content: text.slice(lastIdx, match.index) });
+    parts.push({ type: 'code', lang: match[1], content: match[2] });
+    lastIdx = match.index + match[0].length;
+  }
+  if (lastIdx < text.length) parts.push({ type: 'text', content: text.slice(lastIdx) });
+
+  return parts.map(p => {
+    if (p.type === 'code') {
+      const header = p.lang ? `<div class="pre-header">${esc(p.lang)}</div>` : '';
+      return header + '<pre><code>' + esc(p.content.replace(/\n$/, '')) + '</code></pre>';
+    }
+    return renderMd(p.content);
+  }).join('');
+}
+
+function renderMd(text) {
+  // Process block-level elements line by line
+  const lines = text.split('\n');
+  let html = '';
+  let inList = false, listType = '';
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+
+    // Headings
+    const hMatch = line.match(/^(#{1,4})\s+(.+)/);
+    if (hMatch) {
+      if (inList) { html += `</${listType}>`; inList = false; }
+      const level = hMatch[1].length;
+      html += `<h${level}>${inlineMd(hMatch[2])}</h${level}>`;
+      continue;
+    }
+
+    // Horizontal rule
+    if (/^[-*_]{3,}\s*$/.test(line)) {
+      if (inList) { html += `</${listType}>`; inList = false; }
+      html += '<hr>';
+      continue;
+    }
+
+    // Blockquote
+    if (line.startsWith('> ')) {
+      if (inList) { html += `</${listType}>`; inList = false; }
+      html += `<blockquote>${inlineMd(line.slice(2))}</blockquote>`;
+      continue;
+    }
+
+    // Unordered list
+    const ulMatch = line.match(/^[\s]*[-*+]\s+(.+)/);
+    if (ulMatch) {
+      if (!inList || listType !== 'ul') {
+        if (inList) html += `</${listType}>`;
+        html += '<ul>'; inList = true; listType = 'ul';
+      }
+      html += `<li>${inlineMd(ulMatch[1])}</li>`;
+      continue;
+    }
+
+    // Ordered list
+    const olMatch = line.match(/^[\s]*\d+[.)]\s+(.+)/);
+    if (olMatch) {
+      if (!inList || listType !== 'ol') {
+        if (inList) html += `</${listType}>`;
+        html += '<ol>'; inList = true; listType = 'ol';
+      }
+      html += `<li>${inlineMd(olMatch[1])}</li>`;
+      continue;
+    }
+
+    // Close list if we're in one
+    if (inList) { html += `</${listType}>`; inList = false; }
+
+    // Table row detection
+    if (line.includes('|') && line.trim().startsWith('|')) {
+      // Check if next line is separator
+      const isHeader = i + 1 < lines.length && /^\|[\s:|-]+\|$/.test(lines[i + 1]?.trim());
+      if (isHeader) {
+        const cells = line.split('|').filter(c => c.trim()).map(c => `<th>${inlineMd(c.trim())}</th>`);
+        html += `<table><thead><tr>${cells.join('')}</tr></thead><tbody>`;
+        i++; // skip separator
+        while (i + 1 < lines.length && lines[i + 1]?.trim().startsWith('|')) {
+          i++;
+          const rowCells = lines[i].split('|').filter(c => c.trim()).map(c => `<td>${inlineMd(c.trim())}</td>`);
+          html += `<tr>${rowCells.join('')}</tr>`;
+        }
+        html += '</tbody></table>';
+        continue;
+      }
+    }
+
+    // Empty line = paragraph break
+    if (!line.trim()) { html += '<br>'; continue; }
+
+    // Normal paragraph
+    html += `<p>${inlineMd(line)}</p>`;
+  }
+  if (inList) html += `</${listType}>`;
+  return html;
+}
+
+function inlineMd(text) {
+  return esc(text)
+    // Bold+italic
+    .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+    // Bold
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__(.+?)__/g, '<strong>$1</strong>')
+    // Italic
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/_(.+?)_/g, '<em>$1</em>')
+    // Strikethrough
+    .replace(/~~(.+?)~~/g, '<s>$1</s>')
+    // Inline code
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    // Links
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    // Auto-link bare URLs
+    .replace(/(?<!["=])(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+}
+
+// ========== NOTIFICATION SOUND ==========
+let prevStatuses = {}; // processId -> status
+
+function playChime() {
+  try {
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    const g = ac.createGain();
+    g.connect(ac.destination);
+    g.gain.setValueAtTime(0.3, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.01, ac.currentTime + 0.6);
+    [[880, 0], [1108.73, 0.15], [1318.51, 0.3]].forEach(([f, t]) => {
+      const o = ac.createOscillator();
+      o.type = 'sine'; o.frequency.value = f;
+      o.connect(g); o.start(ac.currentTime + t); o.stop(ac.currentTime + t + 0.25);
+    });
+  } catch {}
+}
+
+function checkCompletions(processes) {
+  const isFirst = Object.keys(prevStatuses).length === 0;
+  let shouldChime = false;
+  for (const p of processes) {
+    const prev = prevStatuses[p.id];
+    if (!isFirst && prev && (prev === 'running' || prev === 'starting') && p.status === 'completed') {
+      shouldChime = true;
+    }
+    prevStatuses[p.id] = p.status;
+  }
+  if (shouldChime) playChime();
+}
+
+// ========== DRAFT PERSISTENCE ==========
+function saveDraft(workspaceId, text) {
+  try { sessionStorage.setItem('draft_' + workspaceId, text); } catch {}
+}
+function loadDraft(workspaceId) {
+  try { return sessionStorage.getItem('draft_' + workspaceId) || ''; } catch { return ''; }
+}
+function clearDraft(workspaceId) {
+  try { sessionStorage.removeItem('draft_' + workspaceId); } catch {}
+}
+
+// ========== RENDER ==========
+
+function render() {
+  closeAll();
+  switch (S.view) {
+    case 'home': return renderHome();
+    case 'session': return renderSession();
+    case 'log': return renderLog();
+  }
+}
+
+function closeAll() {
+  if (S.wsHome) { S.wsHome.close(); S.wsHome = null; }
+  if (S.epWs) { S.epWs.close(); S.epWs = null; }
+  if (S.logWs) { S.logWs.close(); S.logWs = null; }
+  prevStatuses = {};
+}
+
+// ========== HOME: Flat workspace list ==========
+
+function renderHome() {
+  app.innerHTML = `
+    <div class="header"><h1>Workspaces</h1></div>
+    <div class="content" id="ws-list"><div class="loading"><div class="spinner"></div></div></div>`;
+
+  // Load projects for name lookup, then connect WS
+  loadProjectsAndTasks().then(() => connectHomeWs());
+}
+
+async function loadProjectsAndTasks() {
+  try {
+    const projects = await api('/projects');
+    S.projectsById = {};
+    for (const p of projects) S.projectsById[p.id] = p;
+
+    // Load tasks for all projects in parallel
+    const taskPromises = projects.map(p => api(`/tasks?project_id=${p.id}`).then(ts => {
+      for (const t of ts) { t._projectName = p.name; S.tasksById[t.id] = t; }
+    }).catch(() => {}));
+    await Promise.all(taskPromises);
+  } catch {}
+}
+
+function connectHomeWs() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(`${proto}//${location.host}/api/task-attempts/stream/ws?archived=false`);
+  S.wsHome = ws;
+  ws.onmessage = e => {
+    try {
+      const data = JSON.parse(e.data);
+      if (!data.JsonPatch) return;
+      for (const patch of data.JsonPatch) {
+        if (patch.path === '/workspaces' && patch.value) {
+          S.allWorkspaces = patch.value;
+          renderWorkspaceList();
+        } else if (patch.path.startsWith('/workspaces/') && patch.value) {
+          const id = patch.path.split('/')[2];
+          S.allWorkspaces[id] = patch.value;
+          renderWorkspaceList();
+        }
+      }
+    } catch {}
+  };
+}
+
+function renderWorkspaceList() {
+  const el = document.getElementById('ws-list');
+  if (!el) return;
+
+  const list = Object.values(S.allWorkspaces).sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+  if (!list.length) { el.innerHTML = '<div class="empty">No workspaces</div>'; return; }
+
+  // Split into running and others
+  const running = list.filter(w => w.is_running);
+  const others = list.filter(w => !w.is_running);
+
+  let html = '';
+
+  if (running.length) {
+    html += `<div class="section-label">Active <span>${running.length}</span></div>`;
+    html += running.map(wsItemHtml).join('');
+  }
+
+  html += `<div class="section-label">All <span>${others.length}</span></div>`;
+  html += others.map(wsItemHtml).join('');
+
+  el.innerHTML = html;
+
+  el.querySelectorAll('.ws-item').forEach(item => {
+    item.onclick = () => {
+      const w = S.allWorkspaces[item.dataset.id];
+      S.workspaceId = item.dataset.id;
+      S.workspaceName = w?.name || w?.branch || '';
+      S.view = 'session';
+      render();
+    };
+  });
+}
+
+function wsItemHtml(w) {
+  const st = w.is_running ? 'running' : w.is_errored ? 'error' : 'idle';
+  const task = S.tasksById[w.task_id];
+  const projectName = task?._projectName || '';
+  return `
+    <div class="ws-item" data-id="${w.id}">
+      <div class="ws-row">
+        <div class="ws-dot ${st}"></div>
+        <div class="ws-name">${esc(w.name || w.branch)}</div>
+        <span class="ws-time">${timeAgo(w.updated_at)}</span>
+      </div>
+      ${projectName ? `<div class="ws-project">${esc(projectName)}</div>` : ''}
+    </div>`;
+}
+
+// ========== SESSION: Process list + input ==========
+
+function renderSession() {
+  app.innerHTML = `
+    <div class="header">
+      <span class="back" id="back">&lsaquo;</span>
+      <h1>${esc(S.workspaceName)}</h1>
+      <div class="dot off" id="ws-dot"></div>
+    </div>
+    <div class="content" id="proc-list"><div class="loading"><div class="spinner"></div></div></div>
+    <div class="input-area">
+      <textarea id="msg-input" rows="1" placeholder="Send a message..."></textarea>
+      <button class="stop-btn" id="stop-btn">&#9632;</button>
+      <button class="send-btn" id="send-btn">&#9654;</button>
+    </div>`;
+
+  document.getElementById('back').onclick = () => { S.view = 'home'; render(); };
+
+  const ta = document.getElementById('msg-input');
+  // Restore draft
+  const draft = loadDraft(S.workspaceId);
+  if (draft) { ta.value = draft; requestAnimationFrame(() => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'; }); }
+  ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'; saveDraft(S.workspaceId, ta.value); });
+  document.getElementById('send-btn').onclick = sendMessage;
+  document.getElementById('stop-btn').onclick = stopWorkspace;
+  ta.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendMessage(); }});
+
+  api(`/sessions?workspace_id=${S.workspaceId}`).then(ss => {
+    if (ss.length > 0) {
+      S.sessionId = ss[0].id;
+      connectProcessWs(ss[0].id);
+    } else {
+      S.sessionId = null;
+      document.getElementById('proc-list').innerHTML = '<div class="empty">No sessions yet. Send a message to start.</div>';
+    }
+  });
+}
+
+function connectProcessWs(sessionId) {
+  if (S.epWs) { S.epWs.close(); S.epWs = null; }
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  S.epWs = new WebSocket(`${proto}//${location.host}/api/execution-processes/stream/session/ws?session_id=${sessionId}`);
+  S.processes = [];
+
+  S.epWs.onmessage = e => {
+    try {
+      const data = JSON.parse(e.data);
+      if (!data.JsonPatch) return;
+      for (const patch of data.JsonPatch) {
+        if (patch.path === '/execution_processes' && patch.value) {
+          S.processes = Object.values(patch.value).sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+        } else if (patch.path.startsWith('/execution_processes/') && patch.value) {
+          const id = patch.path.split('/')[2];
+          const idx = S.processes.findIndex(p => p.id === id);
+          if (idx >= 0) S.processes[idx] = patch.value; else S.processes.push(patch.value);
+          S.processes.sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+        }
+      }
+      renderProcessList();
+    } catch {}
+  };
+}
+
+function renderProcessList() {
+  const el = document.getElementById('proc-list');
+  if (!el) return;
+  const dot = document.getElementById('ws-dot');
+
+  checkCompletions(S.processes);
+  const hasRunning = S.processes.some(p => p.status === 'running' || p.status === 'starting');
+  if (dot) dot.className = 'dot ' + (hasRunning ? 'on' : 'off');
+  const stopBtn = document.getElementById('stop-btn');
+  if (stopBtn) stopBtn.classList.toggle('visible', hasRunning);
+
+  if (!S.processes.length) { el.innerHTML = '<div class="empty">No messages yet</div>'; return; }
+
+  el.innerHTML = S.processes.map(p => {
+    const prompt = getPrompt(p);
+    const st = (p.status === 'running' || p.status === 'starting') ? 'running' : p.status === 'completed' ? (p.exit_code === 0 ? 'done' : 'error') : p.status;
+    const label = st === 'running' ? 'Running' : st === 'done' ? 'Done' : st === 'error' ? 'Error' : p.status;
+    return `
+      <div class="proc-item" data-id="${p.id}">
+        <div class="proc-header">
+          <span class="badge ${st}">${label}</span>
+          <span class="proc-time">${timeAgo(p.started_at)}</span>
+        </div>
+        <div class="proc-prompt">${esc(prompt)}</div>
+      </div>`;
+  }).join('');
+
+  el.querySelectorAll('.proc-item').forEach(pi => pi.onclick = () => {
+    S.processId = pi.dataset.id;
+    S.view = 'log';
+    render();
+  });
+  el.scrollTop = el.scrollHeight;
+}
+
+function getPrompt(proc) {
+  try {
+    const ea = proc.executor_action?.typ;
+    if (ea?.prompt) return ea.prompt;
+    return ea?.type || '(process)';
+  } catch { return '(process)'; }
+}
+
+// ========== LOG: Conversation detail ==========
+
+function renderLog() {
+  const proc = S.processes.find(p => p.id === S.processId);
+  const prompt = proc ? getPrompt(proc) : '';
+
+  app.innerHTML = `
+    <div class="header"><span class="back" id="back">&lsaquo;</span><h1>${esc(prompt).substring(0, 60)}</h1></div>
+    <div class="content" id="log-content"><div class="loading"><div class="spinner"></div></div></div>`;
+
+  document.getElementById('back').onclick = () => { S.view = 'session'; render(); };
+
+  S.entries = [];
+  connectLogWs(S.processId);
+}
+
+function connectLogWs(processId) {
+  if (S.logWs) { S.logWs.close(); S.logWs = null; }
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  S.logWs = new WebSocket(`${proto}//${location.host}/api/execution-processes/${processId}/normalized-logs/ws`);
+  let entries = {};
+
+  S.logWs.onmessage = e => {
+    try {
+      const data = JSON.parse(e.data);
+      if (!data.JsonPatch) return;
+      for (const patch of data.JsonPatch) {
+        if (patch.path.startsWith('/entries/')) {
+          entries[parseInt(patch.path.split('/')[2])] = patch.value;
+        }
+      }
+      S.entries = Object.entries(entries).sort(([a],[b]) => a - b).map(([,v]) => v);
+      renderLogEntries();
+    } catch {}
+  };
+}
+
+function renderLogEntries() {
+  const el = document.getElementById('log-content');
+  if (!el) return;
+  const autoScroll = el.scrollTop + el.clientHeight >= el.scrollHeight - 50;
+
+  const items = S.entries.filter(e => {
+    const t = e?.content?.entry_type?.type;
+    return t === 'user_message' || t === 'assistant_message' || t === 'tool_use' || t === 'system_message';
+  });
+  if (!items.length) { el.innerHTML = '<div class="loading"><div class="spinner"></div></div>'; return; }
+
+  el.innerHTML = items.map((e, i) => {
+    const c = e.content, t = c.entry_type.type, text = c.content || '', id = `e${i}`;
+    if (t === 'system_message')
+      return `<div class="msg system"><div class="msg-role">System</div><div class="msg-text" style="color:var(--fg3);font-size:12px">${esc(text)}</div></div>`;
+    if (t === 'user_message')
+      return `<div class="msg user"><div class="msg-role"><span class="role-user">You</span></div><div class="msg-text">${formatContent(text)}</div></div>`;
+    if (t === 'assistant_message') {
+      const long = text.length > 300;
+      return `<div class="msg assistant"><div class="msg-role"><span class="role-assistant">Assistant</span></div><div class="msg-text ${long?'collapsed':''}" id="${id}">${formatContent(text)}</div>${long?`<div class="msg-toggle" data-t="${id}">Show more</div>`:''}</div>`;
+    }
+    if (t === 'tool_use') {
+      const tool = c.entry_type.tool_name || 'Tool';
+      const long = text.length > 200;
+      return `<div class="msg tool"><div class="msg-role"><span class="role-tool">${esc(tool)}</span></div><div class="msg-text ${long?'collapsed':''}" id="${id}"><pre>${esc(text.substring(0,2000))}</pre></div>${long?`<div class="msg-toggle" data-t="${id}">Show more</div>`:''}</div>`;
+    }
+    return '';
+  }).join('');
+
+  el.querySelectorAll('.msg-toggle').forEach(btn => {
+    btn.onclick = () => {
+      const tgt = document.getElementById(btn.dataset.t);
+      if (tgt) { const c = tgt.classList.toggle('collapsed'); btn.textContent = c ? 'Show more' : 'Show less'; }
+    };
+  });
+  if (autoScroll) el.scrollTop = el.scrollHeight;
+}
+
+// ========== SEND & STOP ==========
+
+async function sendMessage() {
+  const ta = document.getElementById('msg-input');
+  const btn = document.getElementById('send-btn');
+  const prompt = ta.value.trim();
+  if (!prompt) return;
+  btn.disabled = true;
+  ta.value = '';
+  ta.style.height = 'auto';
+  clearDraft(S.workspaceId);
+  try {
+    if (!S.sessionId) {
+      const session = await apiPost('/sessions', { workspace_id: S.workspaceId, executor: 'CLAUDE_CODE' });
+      S.sessionId = session.id;
+      connectProcessWs(session.id);
+    }
+    await apiPost(`/sessions/${S.sessionId}/follow-up`, {
+      prompt, executor_profile_id: { executor: 'CLAUDE_CODE' },
+      retry_process_id: null, force_when_dirty: null, perform_git_reset: null
+    });
+  } catch (e) { alert('Failed: ' + e.message); }
+  btn.disabled = false;
+  ta.focus();
+}
+
+async function stopWorkspace() {
+  const btn = document.getElementById('stop-btn');
+  if (btn) btn.style.opacity = '.5';
+  try {
+    await apiPost(`/task-attempts/${S.workspaceId}/stop`, {});
+  } catch (e) { alert('Stop failed: ' + e.message); }
+  if (btn) btn.style.opacity = '';
+}
+
+// Boot
+render();
+</script>
+</body>
+</html>
